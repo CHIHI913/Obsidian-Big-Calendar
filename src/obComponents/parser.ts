@@ -126,7 +126,7 @@ export const PATTERNS = {
   TIME_STANDARD: /(\d{1,2}):(\d{2})(?::(\d{2}))?/g,
   TIME_WITH_TAG: /<time>(\d{1,2}):(\d{2})(?::(\d{2}))?<\/time>/g,
   END_TIME: /⏲\s?(\d{1,2}):(\d{2})(?::(\d{2}))?/g,
-  TIME_RANGE: /(\d{1,2}):(\d{2})(?::(\d{2}))?-(\d{1,2}):(\d{2})(?::(\d{2}))?/g,
+  TIME_RANGE: /(\d{1,2}):(\d{2})(?::(\d{2}))?\s?-\s?(\d{1,2}):(\d{2})(?::(\d{2}))?/g,
 
   // Date patterns
   DUE_DATE: /\s(📅|📆|(@{)|(\[due::))\s?(\d{4}-\d{2}-\d{2})(\])?/g,

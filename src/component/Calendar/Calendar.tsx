@@ -353,7 +353,7 @@ const CalendarComponent = forwardRef((props: CalendarProps, ref: React.Forwarded
         // Remove time patterns from the title for display
         const title = event.title as string;
         const cleanedTitle = title
-          .replace(/\d{1,2}:\d{2}(-\d{1,2}:\d{2})?/g, '') // Remove time ranges like 10:00-11:00
+          .replace(/\d{1,2}:\d{2}(\s?-\s?\d{1,2}:\d{2})?/g, '') // Remove time ranges like 10:00-11:00 or 10:00 - 11:00
           .replace(/⏲\s?\d{1,2}:\d{2}/g, '') // Remove end time emoji patterns
           .replace(/📅\s?\d{4}-\d{2}-\d{2}/g, '') // Remove date patterns
           .trim();
