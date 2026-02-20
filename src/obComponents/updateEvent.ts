@@ -448,26 +448,26 @@ function cleanEventContent(originalContent: string, content: string): string {
   let cleanContent = content;
 
   // Remove any existing time patterns
-  cleanContent = cleanContent.replace(/^\d{1,2}:\d{2}(-\d{1,2}:\d{2})?\s+/, '').trim();
+  cleanContent = cleanContent.replace(/^\d{1,2}:\d{2}(\s?-\s?\d{1,2}:\d{2})?\s+/, '').trim();
   // Remove any existing end time patterns
   cleanContent = cleanContent.replace(/⏲\s?\d{1,2}:\d{2}/g, '').trim();
   // Remove any existing date patterns
   cleanContent = cleanContent.replace(/📅\s?\d{4}-\d{2}-\d{2}/g, '').trim();
   // Remove any time range patterns
-  cleanContent = cleanContent.replace(/\d{1,2}:\d{2}-\d{1,2}:\d{2}/g, '').trim();
+  cleanContent = cleanContent.replace(/\d{1,2}:\d{2}\s?-\s?\d{1,2}:\d{2}/g, '').trim();
 
   // If the original content had special formatting that we want to preserve,
   // we can check for that here, but we prioritize the new content
   if (cleanContent === '' && originalContent) {
     // Fallback to cleaned original content if new content is empty after cleaning
     cleanContent = originalContent
-      .replace(/^\d{1,2}:\d{2}(-\d{1,2}:\d{2})?\s+/, '')
+      .replace(/^\d{1,2}:\d{2}(\s?-\s?\d{1,2}:\d{2})?\s+/, '')
       .trim()
       .replace(/⏲\s?\d{1,2}:\d{2}/g, '')
       .trim()
       .replace(/📅\s?\d{4}-\d{2}-\d{2}/g, '')
       .trim()
-      .replace(/\d{1,2}:\d{2}-\d{1,2}:\d{2}/g, '')
+      .replace(/\d{1,2}:\d{2}\s?-\s?\d{1,2}:\d{2}/g, '')
       .trim();
   }
 
