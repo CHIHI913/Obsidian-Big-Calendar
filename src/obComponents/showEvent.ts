@@ -1,44 +1,62 @@
-import {moment, Platform} from 'obsidian';
+import {moment, Platform, TFile} from 'obsidian';
 import fileService from '../services/fileService';
 import {safeExecute} from '../api';
 
 /**
- * 在日记笔记中显示事件
- *
- * @param eventId 要显示的事件ID
- * @returns Promise解析为void
+ * Open a file at a specific line number
  */
-export const showEventInDailyNotes = async (eventId: string): Promise<void> => {
+async function openFileAtLine(file: TFile, lineNum: number): Promise<void> {
+  const {app} = fileService.getState();
+
+  if (!Platform.isMobile) {
+    const leaf = app.workspace.getLeaf(true);
+    await leaf.openFile(file, {eState: {line: lineNum}});
+  } else {
+    let leaf = app.workspace.activeLeaf;
+    if (leaf === null) {
+      leaf = app.workspace.getLeaf(true);
+    }
+    await leaf.openFile(file, {eState: {line: lineNum}});
+  }
+}
+
+/**
+ * Show event in its source file (daily note or extra folder file)
+ */
+export const showEvent = async (event: {id: string; path?: string}): Promise<void> => {
   return await safeExecute(async () => {
     const {app} = fileService.getState();
 
-    if (!/\d{14,}/.test(eventId)) {
+    if (!/\d{14,}/.test(event.id)) {
       throw new Error('Invalid event ID format');
     }
 
-    // 解析事件ID中的行号和日期
-    const lineNum = parseInt(eventId.slice(14));
-    const eventDateString = eventId.slice(0, 14);
-    const date = moment(eventDateString, 'YYYYMMDDHHmmss');
+    const lineNum = parseInt(event.id.slice(14));
 
-    // 获取日记笔记文件
+    // If event has a path, try to open the file directly
+    if (event.path) {
+      const file = app.vault.getFileByPath(event.path);
+      if (file) {
+        await openFileAtLine(file, lineNum);
+        return;
+      }
+    }
+
+    // Fallback: resolve via daily note date
+    const eventDateString = event.id.slice(0, 14);
+    const date = moment(eventDateString, 'YYYYMMDDHHmmss');
     const file = await fileService.getDailyNoteByEvent(date);
     if (!file) {
-      throw new Error(`Daily note not found for date: ${date.format('YYYY-MM-DD')}`);
+      throw new Error(`File not found for event: ${event.id}`);
     }
 
-    // 根据平台选择不同的打开方式
-    if (!Platform.isMobile) {
-      // 桌面端：在新标签页中打开
-      const leaf = app.workspace.getLeaf(true);
-      await leaf.openFile(file, {eState: {line: lineNum}});
-    } else {
-      // 移动端：在当前标签页或新标签页中打开
-      let leaf = app.workspace.activeLeaf;
-      if (leaf === null) {
-        leaf = app.workspace.getLeaf(true);
-      }
-      await leaf.openFile(file, {eState: {line: lineNum}});
-    }
-  }, 'Failed to show event in daily notes');
+    await openFileAtLine(file, lineNum);
+  }, 'Failed to show event');
+};
+
+/**
+ * Legacy wrapper — kept for backward compatibility
+ */
+export const showEventInDailyNotes = async (eventId: string): Promise<void> => {
+  return showEvent({id: eventId});
 };

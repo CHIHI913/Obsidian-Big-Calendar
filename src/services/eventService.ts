@@ -4,9 +4,10 @@ import {changeEvent} from '@/obComponents/updateEvent';
 import {stringOrDate} from 'react-big-calendar';
 import {deleteForever} from '@/obComponents/deleteEvent';
 import fileService from '@/services/fileService';
+import globalService from '@/services/globalService';
 import {parseEventInfoFromLine, lineContainsEvent} from '@/utils/fileParser';
 import {App, TFile, moment} from 'obsidian';
-import {getEvents, getEventsFromDailyNote} from '@/obComponents/getEvents';
+import {getEvents, getEventsFromDailyNote, getEventsFromExtraFile} from '@/obComponents/getEvents';
 import {hideEvent} from '@/obComponents/hideEvent';
 
 /**
@@ -357,11 +358,20 @@ class EventService {
    * @param file TFile to fetch events from
    * @returns Array of events from the file
    */
+  private isExtraFolderFile(file: TFile): boolean {
+    const settings = globalService.getState().pluginSetting;
+    return settings.ExtraFolders?.some((f) => file.path.startsWith(f.path + '/')) ?? false;
+  }
+
   public async fetchEventsFromFile(app: App, file: TFile): Promise<Model.Event[]> {
     try {
       // Get events specific to this file
       const newEvents: Model.Event[] = [];
-      await getEventsFromDailyNote(file, newEvents);
+      if (this.isExtraFolderFile(file)) {
+        await getEventsFromExtraFile(file, newEvents);
+      } else {
+        await getEventsFromDailyNote(file, newEvents);
+      }
 
       if (!Array.isArray(newEvents)) {
         return [];

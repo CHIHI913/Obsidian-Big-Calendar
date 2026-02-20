@@ -5,7 +5,7 @@ import ReactDOM from 'react-dom/client';
 
 import App from './App';
 import type BigCalendarPlugin from './index';
-import {fileService, eventService} from '@/services';
+import {fileService, eventService, globalService} from '@/services';
 import {getDateFromFile} from 'obsidian-daily-notes-interface';
 import {ViewProvider} from '@/hooks/useView';
 import {t} from '@/translations/helper';
@@ -31,32 +31,38 @@ export class BigCalendar extends ItemView {
     return CALENDAR_VIEW_TYPE;
   }
 
+  private isExtraFolderFile(file: TFile): boolean {
+    const settings = globalService.getState().pluginSetting;
+    return settings.ExtraFolders?.some((f) => file.path.startsWith(f.path + '/')) ?? false;
+  }
+
   private async onFileDeleted(file: TFile): Promise<void> {
-    if (getDateFromFile(file, 'day')) {
-      // Get updates only for this specific file's events
+    const isDailyNote = getDateFromFile(file, 'day');
+    if (isDailyNote || this.isExtraFolderFile(file)) {
       eventService.clearEventsForFile(file.path);
 
-      // Still need to update our files list, but don't reprocess all events
-      await fileService.getAllFiles();
+      if (isDailyNote) {
+        await fileService.getAllFiles();
+      }
     }
   }
 
   private async onFileModified(file: TFile): Promise<void> {
-    const date = getDateFromFile(file, 'day');
+    const isDailyNote = getDateFromFile(file, 'day');
 
-    if (date && this.root) {
-      // Update only events from this specific file
+    if ((isDailyNote || this.isExtraFolderFile(file)) && this.root) {
       await eventService.fetchEventsFromFile(this.app, file);
     }
   }
 
   private onFileCreated(file: TFile): void {
     if (this.app.workspace.layoutReady && this.root) {
-      if (getDateFromFile(file, 'day')) {
-        // Update our files list
-        fileService.getAllFiles();
+      const isDailyNote = getDateFromFile(file, 'day');
+      if (isDailyNote || this.isExtraFolderFile(file)) {
+        if (isDailyNote) {
+          fileService.getAllFiles();
+        }
 
-        // Process only events from this new file
         eventService.fetchEventsFromFile(this.app, file);
       }
     }

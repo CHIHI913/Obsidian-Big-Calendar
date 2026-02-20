@@ -109,6 +109,82 @@ export async function getEventsFromDailyNote(
   }, 'Failed to get events from daily note');
 }
 
+/**
+ * Get events from a non-daily-note file in ExtraFolders.
+ * Uses 📅 date from each task line as the default date instead of getDateFromFile().
+ * Lines without a 📅 date are skipped (no date can be determined).
+ */
+export async function getEventsFromExtraFile(
+  file: TFile,
+  extraEvents: Model.Event[],
+): Promise<Model.Event[]> {
+  return await safeExecute(async () => {
+    if (!file) {
+      return [];
+    }
+
+    const {vault} = fileService.getState().app;
+    const fileContents = await vault.read(file);
+    const fileLines = getAllLinesFromFile(fileContents);
+    const result: Model.Event[] = [];
+
+    // ExtraFolders files: ignore ProcessEntriesBelow, scan all lines
+    let currentIndex = 0;
+
+    while (currentIndex < fileLines.length) {
+      const line = fileLines[currentIndex];
+
+      // Parse the line
+      const parsedLine = parseLine(line);
+
+      // Only process lines that have time info or are tasks
+      if (lineContainsTime(line)) {
+        // For extra files, determine the date from the line's 📅 date annotation
+        const dueDate = parsedLine.dates.find((d) => d.type === 'due');
+        const scheduledDate = parsedLine.dates.find((d) => d.type === 'scheduled');
+        const startDateInfo = parsedLine.dates.find((d) => d.type === 'start');
+
+        // Use the first available date as the default date
+        const lineDate = dueDate?.moment || scheduledDate?.moment || startDateInfo?.moment;
+
+        if (!lineDate) {
+          // No date found on this line — skip it
+          currentIndex++;
+          continue;
+        }
+
+        const event = convertToEvent(parsedLine, lineDate, currentIndex, file.path);
+
+        if (event) {
+          result.push(event);
+          if (extraEvents) {
+            extraEvents.push(event);
+          }
+        }
+      }
+
+      currentIndex++;
+    }
+
+    return result;
+  }, 'Failed to get events from extra file');
+}
+
+/**
+ * Recursively collect all .md TFiles from a folder
+ */
+function collectMarkdownFiles(folder: TFolder): TFile[] {
+  const files: TFile[] = [];
+  for (const child of folder.children) {
+    if (child instanceof TFile && child.extension === 'md') {
+      files.push(child);
+    } else if (child instanceof TFolder) {
+      files.push(...collectMarkdownFiles(child));
+    }
+  }
+  return files;
+}
+
 // Function to check if the file metadata matches the filter criteria
 async function fileHasMatchingMetadata(
   file: TFile,
@@ -225,6 +301,21 @@ export async function getEvents(app: App): Promise<Model.Event[]> {
         // Get events from the file
         const events = await getEventsFromDailyNote(file, []);
         allEvents.push(...events);
+      }
+    }
+
+    // Process ExtraFolders
+    const settings = globalService.getState().pluginSetting;
+    if (settings.ExtraFolders && settings.ExtraFolders.length > 0) {
+      for (const extraFolderConfig of settings.ExtraFolders) {
+        const extraFolder = app.vault.getFolderByPath(extraFolderConfig.path);
+        if (!extraFolder) continue;
+
+        const mdFiles = collectMarkdownFiles(extraFolder);
+        for (const file of mdFiles) {
+          const events = await getEventsFromExtraFile(file, []);
+          allEvents.push(...events);
+        }
       }
     }
 

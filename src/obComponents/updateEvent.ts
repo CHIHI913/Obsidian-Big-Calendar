@@ -1,10 +1,18 @@
 import {App, TFile, Vault, moment} from 'obsidian';
 import fileService from '../services/fileService';
+import globalService from '../services/globalService';
 import {stringOrDate} from 'react-big-calendar';
 import {createTimeRegex, getAllLinesFromFile, extractEventTime, safeExecute} from '../api';
 import {getDailyNote, getAllDailyNotes} from 'obsidian-daily-notes-interface';
-import globalService from '../services/globalService';
 import {getMarkBasedOnEvent} from './parser';
+
+/**
+ * Check if a file path belongs to an ExtraFolder
+ */
+function isExtraFolderPath(filePath: string): boolean {
+  const settings = globalService.getState().pluginSetting;
+  return settings.ExtraFolders?.some((f) => filePath.startsWith(f.path + '/')) ?? false;
+}
 
 /**
  * Changes an existing event with new content and dates
@@ -54,42 +62,53 @@ export async function changeEvent(
 
     // For all-day events without time information, handle specially
     if (isAllDayWithoutTime) {
-      const dailyNote = app.vault.getFileByPath(originalPath);
+      const isExtraFile = isExtraFolderPath(originalPath);
+      const sourceFile = app.vault.getFileByPath(originalPath);
 
-      if (!dailyNote) {
-        throw new Error(`Daily note not found for date: ${originalStartDate.format('YYYY-MM-DD')}`);
+      if (!sourceFile) {
+        throw new Error(`File not found: ${originalPath}`);
       }
 
       // Read file content
-      const fileContent = await app.vault.read(dailyNote);
+      const fileContent = await app.vault.read(sourceFile);
       const fileLines = getAllLinesFromFile(fileContent);
 
       // Find the line with the event using the accurate method
       const lineIndex = findEventLine(fileLines, eventid, originalContent, originalStartDate, eventType);
-      console.log(eventType);
       if (lineIndex === -1) {
         throw new Error('Could not find the event line in the file');
       }
 
-      // Clean the content
-      const cleanContent = cleanEventContent(originalContent, content);
-
-      // Format the line
       let newLine;
 
-      // If this is an all-day event without time and the content still doesn't have time
-      if (isAllDayWithoutTime && !content.match(/^\d{1,2}:\d{2}/)) {
-        // Use the special formatting for all-day events
-        newLine = formatAllDayEvent(cleanContent, originalStartDate, eventStartMoment, eventEndMoment, eventType);
+      if (isExtraFile) {
+        // ExtraFolders: update 📅 date in-place, no 🛫, no file move
+        // Use eventStartMoment because react-big-calendar sets end to next day for all-day events (exclusive end)
+        const targetDate = eventStartMoment.format('YYYY-MM-DD');
+        const originalLine = fileLines[lineIndex];
+        // Replace existing 📅 date
+        if (/📅\s?\d{4}-\d{2}-\d{2}/.test(originalLine)) {
+          newLine = originalLine.replace(/📅\s?\d{4}-\d{2}-\d{2}/, `📅 ${targetDate}`);
+        } else {
+          // No 📅 found — append it
+          newLine = `${originalLine} 📅 ${targetDate}`;
+        }
       } else {
-        // For regular events or if time was added, use standard formatting
-        newLine = formatEventLine(cleanContent, eventStartMoment, eventEndMoment, eventType);
+        // Daily Notes: existing behavior
+        const cleanContent = cleanEventContent(originalContent, content);
+        if (!content.match(/^\d{1,2}:\d{2}/)) {
+          newLine = formatAllDayEvent(cleanContent, originalStartDate, eventStartMoment, eventEndMoment, eventType);
+        } else {
+          newLine = formatEventLine(cleanContent, eventStartMoment, eventEndMoment, eventType);
+        }
       }
 
-      // Update the file
+      // Update the file in-place
       fileLines[lineIndex] = newLine;
       const newFileContent = fileLines.join('\n');
-      await app.vault.modify(dailyNote, newFileContent);
+      await app.vault.modify(sourceFile, newFileContent);
+
+      const cleanContent = cleanEventContent(originalContent, content);
 
       // Return the updated event
       return {
@@ -100,7 +119,7 @@ export async function changeEvent(
         allDay: true,
         eventType: eventType,
         originalEventId: originalEventId,
-        path: dailyNote.path,
+        path: sourceFile.path,
       };
     }
 

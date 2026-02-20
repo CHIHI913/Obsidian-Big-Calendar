@@ -43,6 +43,17 @@ export default class BigCalendarPlugin extends Plugin {
 
   public async loadSettings(): Promise<void> {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+
+    // Migrate ExtraFolders from old string[] format to new {path, color}[] format
+    if (this.settings.ExtraFolders && this.settings.ExtraFolders.length > 0) {
+      const needsMigration = this.settings.ExtraFolders.some((item: any) => typeof item === 'string');
+      if (needsMigration) {
+        this.settings.ExtraFolders = (this.settings.ExtraFolders as any[]).map((item: any) =>
+          typeof item === 'string' ? {path: item, color: '#80d0ff'} : item,
+        );
+        await this.saveData(this.settings);
+      }
+    }
   }
 
   async saveSettings(): Promise<void> {
