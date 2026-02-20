@@ -58,6 +58,8 @@ export default class BigCalendarPlugin extends Plugin {
 
   async saveSettings(): Promise<void> {
     await this.saveData(this.settings);
+    globalService.setPluginSetting(this.settings);
+    eventService.fetchAllEvents(this.app);
   }
 
   onunload(): void {
