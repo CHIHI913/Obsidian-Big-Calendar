@@ -12,6 +12,7 @@ export interface CalendarState {
   calendarPopup: boolean;
   startDay: 'sunday' | 'monday';
   isLoading: boolean;
+  hideWeekends: boolean;
 
   // Actions
   setCalendarView: (view: View) => void;
@@ -21,10 +22,12 @@ export interface CalendarState {
   setCalendarPopup: (popup: boolean) => void;
   setStartDay: (startDay: 'sunday' | 'monday') => void;
   setLoading: (isLoading: boolean) => void;
+  setHideWeekends: (hide: boolean) => void;
 
   // Storage-related actions
   saveCalendarView: (app: App) => void;
   saveCalendarDate: (app: App) => void;
+  saveHideWeekends: (app: App) => void;
   loadStoredPreferences: (app: App) => void;
 }
 
@@ -38,6 +41,7 @@ const useCalendarStore = create<CalendarState>((set, get) => ({
   calendarPopup: true,
   startDay: 'monday',
   isLoading: true,
+  hideWeekends: false,
 
   setCalendarView: (view) => {
     // Only update if the view has changed
@@ -96,6 +100,12 @@ const useCalendarStore = create<CalendarState>((set, get) => ({
     }
   },
 
+  setHideWeekends: (hide) => {
+    if (get().hideWeekends !== hide) {
+      set({hideWeekends: hide});
+    }
+  },
+
   // Storage-related actions
   saveCalendarView: (app) => {
     const view = get().calendarView;
@@ -112,6 +122,14 @@ const useCalendarStore = create<CalendarState>((set, get) => ({
       app.saveLocalStorage('currentDate', JSON.stringify(date));
     } catch (error) {
       console.error('Failed to save calendar date', error);
+    }
+  },
+
+  saveHideWeekends: (app) => {
+    try {
+      app.saveLocalStorage('hideWeekends', JSON.stringify(get().hideWeekends));
+    } catch (error) {
+      console.error('Failed to save hideWeekends', error);
     }
   },
 
@@ -135,6 +153,14 @@ const useCalendarStore = create<CalendarState>((set, get) => ({
           if (!currentDate || currentDate.getTime() !== date.getTime()) {
             set({calendarDate: date});
           }
+        }
+      }
+      // Load hideWeekends
+      const hideWeekendsString = app.loadLocalStorage('hideWeekends');
+      if (hideWeekendsString) {
+        const hideWeekends = JSON.parse(hideWeekendsString);
+        if (hideWeekends !== get().hideWeekends) {
+          set({hideWeekends});
         }
       }
     } catch (error) {

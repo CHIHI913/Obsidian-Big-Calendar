@@ -1,4 +1,4 @@
-import React, {forwardRef, useCallback, useEffect, useMemo, memo, useState} from 'react';
+import React, {forwardRef, useCallback, useEffect, useMemo, useRef, memo, useState} from 'react';
 import '@/less/Calendar.less';
 import '@/less/time-select.less';
 import '@/less/event-styles.less';
@@ -43,6 +43,8 @@ interface CalendarProps {
 // Create a memoized DragAndDropCalendar component
 const DragAndDropCalendar = memo(withDragAndDrop(Calendar as any));
 
+const isWeekend = (day: number) => day === 0 || day === 6;
+
 // eslint-disable-next-line react/display-name
 const CalendarComponent = forwardRef((props: CalendarProps, ref: React.ForwardedRef<EventRefActions>) => {
   const {
@@ -58,6 +60,7 @@ const CalendarComponent = forwardRef((props: CalendarProps, ref: React.Forwarded
   // State to manage loading state when filters change
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Get app from fileStore
   const app = useFileStore((state) => state.app);
@@ -80,10 +83,30 @@ const CalendarComponent = forwardRef((props: CalendarProps, ref: React.Forwarded
     loadStoredPreferences,
     saveCalendarView,
     saveCalendarDate,
+    hideWeekends,
   } = useCalendarStore();
 
   // Create a memoized localizer
   const localizer = useMemo(() => momentLocalizer(moment), []);
+
+  // Compute effective view (work_week when hiding weekends in week view)
+  const effectiveView = useMemo(() => {
+    if (hideWeekends && calendarView === 'week') {
+      return 'work_week' as View;
+    }
+    return calendarView;
+  }, [hideWeekends, calendarView]);
+
+  // Filter events for agenda view when hiding weekends
+  const filteredEvents = useMemo(() => {
+    if (hideWeekends && calendarView === 'agenda') {
+      return events.filter((event: any) => {
+        const day = new Date(event.start).getDay();
+        return day !== 0 && day !== 6;
+      });
+    }
+    return events;
+  }, [events, hideWeekends, calendarView]);
 
   // Load events when the component mounts or when the app changes
   useEffect(() => {
@@ -268,8 +291,9 @@ const CalendarComponent = forwardRef((props: CalendarProps, ref: React.Forwarded
   // Handle view changes
   const handleViewChange = useCallback(
     (view: View) => {
-      if (calendarView !== view) {
-        setCalendarView(view);
+      const storeView = view === 'work_week' ? ('week' as View) : view;
+      if (calendarView !== storeView) {
+        setCalendarView(storeView);
         // Save the view change to storage
         if (app) {
           setTimeout(() => {
@@ -284,8 +308,24 @@ const CalendarComponent = forwardRef((props: CalendarProps, ref: React.Forwarded
   // Handle navigation (date changes)
   const handleNavigate = useCallback(
     (date: Date) => {
-      if (calendarDate !== date) {
-        setCalendarDate(date);
+      let targetDate = date;
+
+      // Skip weekends in day view when hideWeekends is on
+      if (hideWeekends && calendarView === 'day') {
+        const day = date.getDay();
+        if (day === 0 || day === 6) {
+          const isForward = date.getTime() > calendarDate.getTime();
+          targetDate = new Date(date);
+          if (isForward) {
+            targetDate.setDate(date.getDate() + (day === 6 ? 2 : 1));
+          } else {
+            targetDate.setDate(date.getDate() - (day === 0 ? 2 : 1));
+          }
+        }
+      }
+
+      if (calendarDate.getTime() !== targetDate.getTime()) {
+        setCalendarDate(targetDate);
 
         // Save the date change to storage
         if (app) {
@@ -295,7 +335,7 @@ const CalendarComponent = forwardRef((props: CalendarProps, ref: React.Forwarded
         }
       }
     },
-    [calendarDate, setCalendarDate, app, saveCalendarDate],
+    [calendarDate, setCalendarDate, app, saveCalendarDate, hideWeekends, calendarView],
   );
 
   // Handle event resize - Memoize the implementation
@@ -339,12 +379,15 @@ const CalendarComponent = forwardRef((props: CalendarProps, ref: React.Forwarded
     return {
       selectable: select,
       localizer: localizer,
-      events: events,
+      events: filteredEvents,
       resizable: resize,
       defaultView: calendarView,
       defaultDate: calendarDate,
       date: calendarDate,
-      view: calendarView,
+      view: effectiveView,
+      views: hideWeekends
+        ? {month: true, week: true, work_week: true, day: true, agenda: true}
+        : {month: true, week: true, day: true, agenda: true},
       eventPropGetter: styleEvents,
       popup: calendarPopup,
       onEventDrop: onEventDrop,
@@ -375,10 +418,12 @@ const CalendarComponent = forwardRef((props: CalendarProps, ref: React.Forwarded
   }, [
     select,
     localizer,
-    events,
+    filteredEvents,
     calendarDate,
     resize,
     calendarView,
+    effectiveView,
+    hideWeekends,
     styleEvents,
     calendarPopup,
     onEventDrop,
@@ -389,8 +434,12 @@ const CalendarComponent = forwardRef((props: CalendarProps, ref: React.Forwarded
     handleEventSelect,
   ]);
 
+  const containerClassName = `calendar-container${hideWeekends ? ' hide-weekends' : ''}${
+    moment.localeData().firstDayOfWeek() === 1 ? ' start-monday' : ' start-sunday'
+  }`;
+
   return (
-    <div className="calendar-container">
+    <div ref={containerRef} className={containerClassName}>
       <div className="calendar-filters">
         <FilterComponent onFilterChange={handleFilterChange} />
         {(isRefreshing || isLoading) && (
