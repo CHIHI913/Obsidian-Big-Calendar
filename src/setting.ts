@@ -16,6 +16,8 @@ export interface BigCalendarSettings {
   WorkspaceFilters: WorkspaceFilter[];
   DefaultFilterId: string;
   ExtraFolders: ExtraFolder[];
+  DayStartHour: number;
+  DayEndHour: number;
 }
 
 export interface WorkspaceFilter {
@@ -48,6 +50,8 @@ export const DEFAULT_SETTINGS: BigCalendarSettings = {
   ],
   DefaultFilterId: 'default',
   ExtraFolders: [],
+  DayStartHour: 0,
+  DayEndHour: 24,
 };
 
 export class BigCalendarSettingTab extends PluginSettingTab {
@@ -92,6 +96,36 @@ export class BigCalendarSettingTab extends PluginSettingTab {
             this.applySettingsUpdate();
           }),
       );
+
+    new Setting(containerEl)
+      .setName(t('Day Start Hour'))
+      .setDesc(t('The earliest hour shown in Week/Day views.'))
+      .addDropdown((dropdown) => {
+        for (let h = 0; h < 24; h++) {
+          dropdown.addOption(String(h), `${h}:00`);
+        }
+        dropdown
+          .setValue(String(this.plugin.settings.DayStartHour ?? 0))
+          .onChange(async (value) => {
+            this.plugin.settings.DayStartHour = parseInt(value);
+            this.applySettingsUpdate();
+          });
+      });
+
+    new Setting(containerEl)
+      .setName(t('Day End Hour'))
+      .setDesc(t('The latest hour shown in Week/Day views.'))
+      .addDropdown((dropdown) => {
+        for (let h = 1; h <= 24; h++) {
+          dropdown.addOption(String(h), h === 24 ? '24:00' : `${h}:00`);
+        }
+        dropdown
+          .setValue(String(this.plugin.settings.DayEndHour ?? 24))
+          .onChange(async (value) => {
+            this.plugin.settings.DayEndHour = parseInt(value);
+            this.applySettingsUpdate();
+          });
+      });
 
     new Setting(containerEl)
       .setName(t('Insert after heading'))

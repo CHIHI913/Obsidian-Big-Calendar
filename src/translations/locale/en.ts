@@ -70,6 +70,12 @@ export default {
   Remove: 'Remove',
   Save: 'Save',
 
+  // Day/Week time range
+  'Day Start Hour': 'Day Start Hour',
+  'The earliest hour shown in Week/Day views.': 'The earliest hour shown in Week/Day views.',
+  'Day End Hour': 'Day End Hour',
+  'The latest hour shown in Week/Day views.': 'The latest hour shown in Week/Day views.',
+
   // Extra Folders
   'Extra Folders': 'Extra Folders',
   'Additional folders to collect events from (besides Daily Notes).':

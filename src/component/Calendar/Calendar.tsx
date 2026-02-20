@@ -374,6 +374,18 @@ const CalendarComponent = forwardRef((props: CalendarProps, ref: React.Forwarded
       });
   }, []);
 
+  // Build time range props from settings
+  const timeRangeProps = useMemo(() => {
+    const settings = globalService.getState().pluginSetting;
+    const startHour = settings.DayStartHour ?? 0;
+    const endHour = settings.DayEndHour ?? 24;
+    return {
+      min: new Date(1970, 0, 1, startHour, 0, 0),
+      max: new Date(1970, 0, 1, endHour === 24 ? 23 : endHour, endHour === 24 ? 59 : 0, endHour === 24 ? 59 : 0),
+      scrollToTime: new Date(1970, 0, 1, startHour, 0, 0),
+    };
+  }, []);
+
   // Memoize calendar props to prevent unnecessary re-renders
   const calendarProps = useMemo(() => {
     return {
@@ -388,6 +400,7 @@ const CalendarComponent = forwardRef((props: CalendarProps, ref: React.Forwarded
       views: hideWeekends
         ? {month: true, week: true, work_week: true, day: true, agenda: true}
         : {month: true, week: true, day: true, agenda: true},
+      ...timeRangeProps,
       eventPropGetter: styleEvents,
       popup: calendarPopup,
       onEventDrop: onEventDrop,
