@@ -70,6 +70,16 @@ export default {
   Remove: 'Remove',
   Save: 'Save',
 
+  // Extra Folders
+  'Extra Folders': 'Extra Folders',
+  'Additional folders to collect events from (besides Daily Notes).':
+    'Additional folders to collect events from (besides Daily Notes).',
+  'Add Folder': 'Add Folder',
+  'Add Extra Folder': 'Add Extra Folder',
+  'Folder Path': 'Folder Path',
+  'Enter the vault-relative folder path (e.g. "projects")':
+    'Enter the vault-relative folder path (e.g. "projects")',
+
   // Filter Component
   'Workspace Filter': 'Workspace Filter',
   None: 'None',

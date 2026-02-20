@@ -3,7 +3,7 @@ import {fileService, eventService} from '@/services';
 import {Notice} from 'obsidian';
 import CalendarComponent, {EventRefActions} from '@/component/Calendar/Calendar';
 import {View, SlotInfo} from 'react-big-calendar';
-import {showEventInDailyNotes} from '@/obComponents/showEvent';
+import {showEvent} from '@/obComponents/showEvent';
 import {useApp, useEvents} from '@/hooks/useStore';
 import useCalendarStore from '@/stores/calendarStore';
 import {EventCreateResult} from '@/obComponents/EventCreatePrompt';
@@ -47,7 +47,7 @@ const BigCalendar: React.FC<Props> = () => {
 
   // Handle event double click
   const handleEventDoubleClick = useCallback(async (event: any) => {
-    await showEventInDailyNotes(event.id);
+    await showEvent({id: event.id, path: event.path});
   }, []);
 
   // Handle event creation

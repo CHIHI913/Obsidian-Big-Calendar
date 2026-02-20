@@ -8,6 +8,7 @@ import {moment} from 'obsidian';
 import withDragAndDrop, {withDragAndDropProps} from 'react-big-calendar/lib/addons/dragAndDrop';
 import dailyNotesService from '@/services/fileService';
 import eventService from '@/services/eventService';
+import globalService from '@/services/globalService';
 import useFileStore from '@/stores/fileStore';
 import useCalendarStore from '@/stores/calendarStore';
 import EventCreatePrompt, {EventCreateResult} from '@/obComponents/EventCreatePrompt';
@@ -217,10 +218,21 @@ const CalendarComponent = forwardRef((props: CalendarProps, ref: React.Forwarded
     [app],
   );
 
-  // Style events based on their type
+  // Style events based on their type and extra folder color
   const styleEvents = useCallback((event: any) => {
     const className = event.eventType;
-    return {className: className};
+    const style: React.CSSProperties = {};
+
+    // Check if this event belongs to an ExtraFolder and apply its color
+    if (event.path) {
+      const settings = globalService.getState().pluginSetting;
+      const matchingFolder = settings.ExtraFolders?.find((f: any) => event.path.startsWith(f.path + '/'));
+      if (matchingFolder?.color) {
+        (style as any)['--event-folder-color'] = matchingFolder.color;
+      }
+    }
+
+    return {className, style};
   }, []);
 
   // Handle double click on events

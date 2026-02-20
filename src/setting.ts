@@ -3,6 +3,11 @@ import type BigCalendar from './index';
 import {t} from './translations/helper';
 import '@/less/setting.less';
 
+export interface ExtraFolder {
+  path: string;
+  color: string;
+}
+
 export interface BigCalendarSettings {
   StartDate: string;
   InsertAfter: string;
@@ -10,6 +15,7 @@ export interface BigCalendarSettings {
   ProcessEntriesBelow: string;
   WorkspaceFilters: WorkspaceFilter[];
   DefaultFilterId: string;
+  ExtraFolders: ExtraFolder[];
 }
 
 export interface WorkspaceFilter {
@@ -41,6 +47,7 @@ export const DEFAULT_SETTINGS: BigCalendarSettings = {
     },
   ],
   DefaultFilterId: 'default',
+  ExtraFolders: [],
 };
 
 export class BigCalendarSettingTab extends PluginSettingTab {
@@ -117,6 +124,45 @@ export class BigCalendarSettingTab extends PluginSettingTab {
             this.applySettingsUpdate();
           }),
       );
+
+    // Extra Folders section
+    new Setting(containerEl)
+      .setHeading()
+      .setName(t('Extra Folders'))
+      .setDesc(t('Additional folders to collect events from (besides Daily Notes).'));
+
+    this.plugin.settings.ExtraFolders.forEach((folder, index) => {
+      new Setting(containerEl)
+        .setName(folder.path)
+        .addColorPicker((picker) => {
+          picker.setValue(folder.color || '#80d0ff').onChange((value) => {
+            this.plugin.settings.ExtraFolders[index].color = value;
+            this.applySettingsUpdate();
+          });
+        })
+        .addExtraButton((button) => {
+          button.setIcon('trash').setTooltip(t('Remove')).onClick(async () => {
+            this.plugin.settings.ExtraFolders.splice(index, 1);
+            await this.plugin.saveSettings();
+            this.display();
+          });
+        });
+    });
+
+    new Setting(containerEl).addButton((button) => {
+      button
+        .setButtonText(t('Add Folder'))
+        .onClick(() => {
+          const modal = new ExtraFolderAddModal(this.app, async (folderPath: string) => {
+            if (folderPath && !this.plugin.settings.ExtraFolders.some((f) => f.path === folderPath)) {
+              this.plugin.settings.ExtraFolders.push({path: folderPath, color: '#80d0ff'});
+              await this.plugin.saveSettings();
+              this.display();
+            }
+          });
+          modal.open();
+        });
+    });
 
     new Setting(containerEl)
       .setHeading()
@@ -453,5 +499,53 @@ class FilterEditModal extends Modal {
         });
       });
     });
+  }
+}
+
+// Modal for adding an extra folder path
+class ExtraFolderAddModal extends Modal {
+  private onSubmit: (folderPath: string) => void;
+
+  constructor(app: App, onSubmit: (folderPath: string) => void) {
+    super(app);
+    this.onSubmit = onSubmit;
+  }
+
+  onOpen() {
+    const {contentEl} = this;
+    contentEl.createEl('h2', {text: t('Add Extra Folder')});
+
+    let inputValue = '';
+    new Setting(contentEl)
+      .setName(t('Folder Path'))
+      .setDesc(t('Enter the vault-relative folder path (e.g. "projects")'))
+      .addText((text) => {
+        text.setPlaceholder('projects').onChange((value) => {
+          inputValue = value;
+        });
+      });
+
+    new Setting(contentEl)
+      .addButton((button) => {
+        button.setButtonText(t('Cancel')).onClick(() => {
+          this.close();
+        });
+      })
+      .addButton((button) => {
+        button
+          .setButtonText(t('Add'))
+          .setCta()
+          .onClick(() => {
+            if (inputValue.trim()) {
+              this.onSubmit(inputValue.trim());
+              this.close();
+            }
+          });
+      });
+  }
+
+  onClose() {
+    const {contentEl} = this;
+    contentEl.empty();
   }
 }
