@@ -1,6 +1,7 @@
 import React, {useCallback} from 'react';
 import {App, Modal, moment, setIcon} from 'obsidian';
 import useFileStore from '@/stores/fileStore';
+import useCalendarStore from '@/stores/calendarStore';
 import {ToolbarProps, View, NavigateAction} from 'react-big-calendar';
 import '@/less/time-select.less';
 import {t} from '@/translations/helper';
@@ -18,6 +19,15 @@ const CustomToolbar: React.FC<ToolbarProps<any, object>> = (props) => {
   } = props;
 
   const app = useFileStore((state) => state.app);
+  const {hideWeekends, setHideWeekends, saveHideWeekends} = useCalendarStore();
+
+  // Handle toggle weekends
+  const handleToggleWeekends = useCallback(() => {
+    setHideWeekends(!hideWeekends);
+    if (app) {
+      setTimeout(() => saveHideWeekends(app), 0);
+    }
+  }, [hideWeekends, setHideWeekends, saveHideWeekends, app]);
 
   // Handle navigation actions (Today, Previous, Next)
   const handleNavigate = useCallback(
@@ -101,6 +111,17 @@ const CustomToolbar: React.FC<ToolbarProps<any, object>> = (props) => {
       </span>
 
       <span className="rbc-btn-group">{renderViewButtons()}</span>
+      <button
+        type="button"
+        className={hideWeekends ? 'rbc-active' : ''}
+        onClick={handleToggleWeekends}
+        title={t('Hide weekends')}
+        style={{marginLeft: '10px'}}
+        ref={(ref) => {
+          if (!ref) return;
+          setIcon(ref, 'briefcase');
+        }}
+      />
     </div>
   );
 };

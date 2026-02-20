@@ -812,3 +812,31 @@ button.rbc-button-link {
 .rbc-toolbar button {
   box-shadow: none;
 }
+
+// Hide weekends in month view
+// Use 140% width (7/5) so the 7-column grid extends beyond the visible area.
+// Weekend columns naturally overflow and are clipped by overflow:hidden.
+// This preserves the DnD addon's slot calculation which divides container width by 7.
+
+// Monday start: Sat(6th) and Sun(7th) are at the end — simple overflow clip
+.hide-weekends.start-monday {
+  .rbc-month-view { overflow: hidden; }
+  .rbc-month-header { width: 140%; }
+  .rbc-month-row {
+    overflow: hidden;
+    .rbc-row-bg { width: 140%; }
+    .rbc-row-content { width: 140%; }
+  }
+}
+
+// Sunday start: Sun(1st) at start, Sat(7th) at end
+// Shift left by 1 column (20% of visible = 1/7 of 140%) to clip Sunday
+.hide-weekends.start-sunday {
+  .rbc-month-view { overflow: hidden; }
+  .rbc-month-header { width: 140%; margin-left: -20%; }
+  .rbc-month-row {
+    overflow: hidden;
+    .rbc-row-bg { width: 140%; left: -20%; }
+    .rbc-row-content { width: 140%; margin-left: -20%; }
+  }
+}
