@@ -82,3 +82,44 @@
   align-items: center;
   gap: 8px;
 }
+
+.folder-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 8px;
+  align-items: center;
+}
+
+.folder-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.8em;
+  cursor: pointer;
+  border: 1px solid var(--background-modifier-border);
+  background-color: var(--background-primary);
+  transition: opacity 0.15s;
+  user-select: none;
+}
+
+.folder-chip:hover {
+  background-color: var(--background-secondary);
+}
+
+.folder-chip.active {
+  opacity: 1;
+}
+
+.folder-chip.inactive {
+  opacity: 0.4;
+}
+
+.folder-chip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}

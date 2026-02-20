@@ -21,6 +21,8 @@ import CustomToolbar from './CustomToolbar';
 import EventComponent from './EventComponent';
 // Import our filter component
 import FilterComponent from './FilterComponent';
+// Import folder filter component
+import FolderFilter from './FolderFilter';
 import {useView} from '@/hooks/useView';
 import {t} from '@/translations/helper';
 
@@ -395,6 +397,7 @@ const CalendarComponent = forwardRef((props: CalendarProps, ref: React.Forwarded
           <div className="filter-refreshing">{isLoading ? 'Loading events...' : 'Refreshing events...'}</div>
         )}
       </div>
+      <FolderFilter onFilterChange={handleFilterChange} />
       <DragAndDropCalendar {...calendarProps} />
     </div>
   );
