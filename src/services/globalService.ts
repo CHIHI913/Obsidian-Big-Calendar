@@ -1,9 +1,13 @@
-import {BigCalendarSettings} from '@/setting';
+import {App} from 'obsidian';
+import {BigCalendarSettings, ExtraFolder} from '@/setting';
 import {storage} from '@/utils/storage';
 import useGlobalStateStore, {AppSetting} from '@/stores/globalStateStore';
 import fileStore from '@/stores/fileStore';
+import {resolveDynamicFolders} from '@/obComponents/dynamicFolderResolver';
 
 class GlobalService {
+  private resolvedDynamicFolders: ExtraFolder[] = [];
+
   constructor() {
     const defaultAppSetting: AppSetting = {
       shouldHideImageUrl: true,
@@ -61,6 +65,18 @@ class GlobalService {
   public setPluginSetting = (pluginSetting: BigCalendarSettings) => {
     useGlobalStateStore.getState().setPluginSetting(pluginSetting);
   };
+
+  public refreshDynamicFolders(app: App): void {
+    const settings = this.getState().pluginSetting;
+    this.resolvedDynamicFolders = resolveDynamicFolders(app, settings?.DynamicFolderRules ?? []);
+  }
+
+  public getEffectiveExtraFolders(): ExtraFolder[] {
+    const staticFolders = this.getState().pluginSetting?.ExtraFolders ?? [];
+    const staticPaths = new Set(staticFolders.map((f) => f.path));
+    const dynamicOnly = this.resolvedDynamicFolders.filter((f) => !staticPaths.has(f.path));
+    return [...staticFolders, ...dynamicOnly];
+  }
 }
 
 const globalService = new GlobalService();

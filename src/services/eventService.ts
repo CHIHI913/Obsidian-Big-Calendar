@@ -359,8 +359,7 @@ class EventService {
    * @returns Array of events from the file
    */
   private isExtraFolderFile(file: TFile): boolean {
-    const settings = globalService.getState().pluginSetting;
-    return settings.ExtraFolders?.some((f) => file.path.startsWith(f.path + '/')) ?? false;
+    return globalService.getEffectiveExtraFolders().some((f) => file.path.startsWith(f.path + '/'));
   }
 
   public async fetchEventsFromFile(app: App, file: TFile): Promise<Model.Event[]> {
