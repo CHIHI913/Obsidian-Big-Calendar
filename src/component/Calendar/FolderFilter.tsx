@@ -3,6 +3,7 @@ import fileService from '@/services/fileService';
 import globalService from '@/services/globalService';
 import locationService from '@/services/locationService';
 import useEventStore from '@/stores/eventStore';
+import useGlobalStateStore from '@/stores/globalStateStore';
 
 interface FolderToggle {
   path: string;
@@ -17,8 +18,9 @@ interface FolderFilterProps {
 
 const FolderFilter: React.FC<FolderFilterProps> = ({onFilterChange}) => {
   const [folders, setFolders] = useState<FolderToggle[]>([]);
+  const pluginSetting = useGlobalStateStore((state) => state.pluginSetting);
 
-  // Build folder list from settings
+  // Build folder list from settings (rebuilds when pluginSetting changes, e.g. dynamic folders refresh)
   useEffect(() => {
     const toggles: FolderToggle[] = [];
 
@@ -37,21 +39,19 @@ const FolderFilter: React.FC<FolderFilterProps> = ({onFilterChange}) => {
       // Daily notes not configured
     }
 
-    // ExtraFolders
-    const settings = globalService.getState().pluginSetting;
-    if (settings?.ExtraFolders) {
-      for (const folder of settings.ExtraFolders) {
-        toggles.push({
-          path: folder.path,
-          label: folder.path.split('/').pop() || folder.path,
-          color: folder.color || '#80d0ff',
-          enabled: true,
-        });
-      }
+    // Effective ExtraFolders (static + dynamic)
+    const effectiveFolders = globalService.getEffectiveExtraFolders();
+    for (const folder of effectiveFolders) {
+      toggles.push({
+        path: folder.path,
+        label: folder.path.split('/').pop() || folder.path,
+        color: folder.color || '#80d0ff',
+        enabled: true,
+      });
     }
 
     setFolders(toggles);
-  }, []);
+  }, [pluginSetting]);
 
   const handleToggle = useCallback(
     (index: number) => {

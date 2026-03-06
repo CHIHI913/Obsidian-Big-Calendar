@@ -304,10 +304,10 @@ export async function getEvents(app: App): Promise<Model.Event[]> {
       }
     }
 
-    // Process ExtraFolders
-    const settings = globalService.getState().pluginSetting;
-    if (settings.ExtraFolders && settings.ExtraFolders.length > 0) {
-      for (const extraFolderConfig of settings.ExtraFolders) {
+    // Process ExtraFolders (static + dynamic)
+    const effectiveFolders = globalService.getEffectiveExtraFolders();
+    if (effectiveFolders.length > 0) {
+      for (const extraFolderConfig of effectiveFolders) {
         const extraFolder = app.vault.getFolderByPath(extraFolderConfig.path);
         if (!extraFolder) continue;
 

@@ -86,6 +86,22 @@ export default {
   'Enter the vault-relative folder path (e.g. "projects")':
     'Enter the vault-relative folder path (e.g. "projects")',
 
+  // Dynamic Folder Rules
+  'Dynamic Folder Rules': 'Dynamic Folder Rules',
+  'Automatically include folders based on frontmatter conditions.':
+    'Automatically include folders based on frontmatter conditions.',
+  'Add Dynamic Rule': 'Add Dynamic Rule',
+  'Edit Dynamic Folder Rule': 'Edit Dynamic Folder Rule',
+  'Rule Name': 'Rule Name',
+  'Base Path': 'Base Path',
+  'Root folder to scan (e.g. "projects")': 'Root folder to scan (e.g. "projects")',
+  'Target File': 'Target File',
+  'Filename to check frontmatter in (default: README.md)':
+    'Filename to check frontmatter in (default: README.md)',
+  Conditions: 'Conditions',
+  'All conditions must match (AND logic)': 'All conditions must match (AND logic)',
+  'Add Condition': 'Add Condition',
+
   // Filter Component
   'Workspace Filter': 'Workspace Filter',
   None: 'None',

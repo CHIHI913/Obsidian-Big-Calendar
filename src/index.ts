@@ -16,7 +16,19 @@ export default class BigCalendarPlugin extends Plugin {
     this.app.workspace.onLayoutReady(() => {
       fileService.setApp(this.app);
       fileService.initAllFiles();
+      globalService.refreshDynamicFolders(this.app);
       eventService.fetchAllEvents(this.app);
+
+      this.registerEvent(
+        this.app.metadataCache.on('changed', (file) => {
+          const rules = this.settings.DynamicFolderRules ?? [];
+          const isRelevant = rules.some((rule) => file.path.startsWith(rule.basePath + '/'));
+          if (isRelevant) {
+            globalService.refreshDynamicFolders(this.app);
+            eventService.fetchAllEvents(this.app);
+          }
+        }),
+      );
     });
 
     // Register view and add icons
@@ -54,11 +66,17 @@ export default class BigCalendarPlugin extends Plugin {
         await this.saveData(this.settings);
       }
     }
+
+    // Migrate DynamicFolderRules
+    if (!this.settings.DynamicFolderRules) {
+      this.settings.DynamicFolderRules = [];
+    }
   }
 
   async saveSettings(): Promise<void> {
     await this.saveData(this.settings);
     globalService.setPluginSetting(this.settings);
+    globalService.refreshDynamicFolders(this.app);
     eventService.fetchAllEvents(this.app);
   }
 

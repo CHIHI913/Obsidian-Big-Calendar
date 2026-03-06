@@ -8,6 +8,22 @@ export interface ExtraFolder {
   color: string;
 }
 
+export interface FrontmatterCondition {
+  key: string;
+  value: string;
+  operator: 'equals' | 'not_equals';
+}
+
+export interface DynamicFolderRule {
+  id: string;
+  name: string;
+  basePath: string;
+  targetFile: string;
+  conditions: FrontmatterCondition[];
+  color: string;
+  isEnabled: boolean;
+}
+
 export interface BigCalendarSettings {
   StartDate: string;
   InsertAfter: string;
@@ -16,6 +32,7 @@ export interface BigCalendarSettings {
   WorkspaceFilters: WorkspaceFilter[];
   DefaultFilterId: string;
   ExtraFolders: ExtraFolder[];
+  DynamicFolderRules: DynamicFolderRule[];
   DayStartHour: number;
   DayEndHour: number;
 }
@@ -50,6 +67,7 @@ export const DEFAULT_SETTINGS: BigCalendarSettings = {
   ],
   DefaultFilterId: 'default',
   ExtraFolders: [],
+  DynamicFolderRules: [],
   DayStartHour: 0,
   DayEndHour: 24,
 };
@@ -196,6 +214,61 @@ export class BigCalendarSettingTab extends PluginSettingTab {
           });
           modal.open();
         });
+    });
+
+    // Dynamic Folder Rules section
+    new Setting(containerEl)
+      .setHeading()
+      .setName(t('Dynamic Folder Rules'))
+      .setDesc(t('Automatically include folders based on frontmatter conditions.'));
+
+    (this.plugin.settings.DynamicFolderRules ?? []).forEach((rule, index) => {
+      new Setting(containerEl)
+        .setName(rule.name || `Rule ${index + 1}`)
+        .setDesc(`${rule.basePath} / ${rule.targetFile || 'README.md'}`)
+        .addToggle((toggle) => {
+          toggle.setValue(rule.isEnabled).onChange((value) => {
+            this.plugin.settings.DynamicFolderRules[index].isEnabled = value;
+            this.applySettingsUpdate();
+          });
+        })
+        .addExtraButton((button) => {
+          button.setIcon('pencil').setTooltip(t('Edit')).onClick(() => {
+            const modal = new DynamicRuleEditModal(this.app, rule, async (updated) => {
+              this.plugin.settings.DynamicFolderRules[index] = updated;
+              await this.plugin.saveSettings();
+              this.display();
+            });
+            modal.open();
+          });
+        })
+        .addExtraButton((button) => {
+          button.setIcon('trash').setTooltip(t('Remove')).onClick(async () => {
+            this.plugin.settings.DynamicFolderRules.splice(index, 1);
+            await this.plugin.saveSettings();
+            this.display();
+          });
+        });
+    });
+
+    new Setting(containerEl).addButton((button) => {
+      button.setButtonText(t('Add Dynamic Rule')).onClick(() => {
+        const newRule: DynamicFolderRule = {
+          id: `dynrule-${Date.now()}`,
+          name: '',
+          basePath: '',
+          targetFile: 'README.md',
+          conditions: [],
+          color: '#80d0ff',
+          isEnabled: true,
+        };
+        const modal = new DynamicRuleEditModal(this.app, newRule, async (rule) => {
+          this.plugin.settings.DynamicFolderRules.push(rule);
+          await this.plugin.saveSettings();
+          this.display();
+        });
+        modal.open();
+      });
     });
 
     new Setting(containerEl)
@@ -581,5 +654,135 @@ class ExtraFolderAddModal extends Modal {
   onClose() {
     const {contentEl} = this;
     contentEl.empty();
+  }
+}
+
+// Modal for editing a Dynamic Folder Rule
+class DynamicRuleEditModal extends Modal {
+  private rule: DynamicFolderRule;
+  private onSubmit: (rule: DynamicFolderRule) => void;
+  private conditionsEl: HTMLElement;
+
+  constructor(app: App, rule: DynamicFolderRule, onSubmit: (rule: DynamicFolderRule) => void) {
+    super(app);
+    this.rule = {
+      ...rule,
+      conditions: rule.conditions.map((c) => ({...c})),
+    };
+    this.onSubmit = onSubmit;
+  }
+
+  onOpen() {
+    const {contentEl} = this;
+    contentEl.empty();
+    contentEl.createEl('h2', {text: t('Edit Dynamic Folder Rule')});
+
+    new Setting(contentEl).setName(t('Rule Name')).addText((text) => {
+      text
+        .setPlaceholder('e.g. Active Work Projects')
+        .setValue(this.rule.name)
+        .onChange((v) => {
+          this.rule.name = v;
+        });
+    });
+
+    new Setting(contentEl)
+      .setName(t('Base Path'))
+      .setDesc(t('Root folder to scan (e.g. "projects")'))
+      .addText((text) => {
+        text
+          .setPlaceholder('projects')
+          .setValue(this.rule.basePath)
+          .onChange((v) => {
+            this.rule.basePath = v;
+          });
+      });
+
+    new Setting(contentEl)
+      .setName(t('Target File'))
+      .setDesc(t('Filename to check frontmatter in (default: README.md)'))
+      .addText((text) => {
+        text
+          .setPlaceholder('README.md')
+          .setValue(this.rule.targetFile)
+          .onChange((v) => {
+            this.rule.targetFile = v;
+          });
+      });
+
+    // Conditions
+    new Setting(contentEl)
+      .setName(t('Conditions'))
+      .setDesc(t('All conditions must match (AND logic)'))
+      .addButton((button) => {
+        button.setIcon('plus').setTooltip(t('Add Condition')).onClick(() => {
+          this.rule.conditions.push({key: '', value: '', operator: 'equals'});
+          this.renderConditions();
+        });
+      });
+
+    this.conditionsEl = contentEl.createDiv('dynamic-rule-conditions');
+    this.renderConditions();
+
+    // Save / Cancel
+    new Setting(contentEl)
+      .addButton((button) => {
+        button.setButtonText(t('Cancel')).onClick(() => {
+          this.close();
+        });
+      })
+      .addButton((button) => {
+        button
+          .setButtonText(t('Save'))
+          .setCta()
+          .onClick(() => {
+            this.rule.conditions = this.rule.conditions.filter((c) => c.key.trim() !== '');
+            this.onSubmit(this.rule);
+            this.close();
+          });
+      });
+  }
+
+  onClose() {
+    const {contentEl} = this;
+    contentEl.empty();
+  }
+
+  private renderConditions() {
+    this.conditionsEl.empty();
+    this.rule.conditions.forEach((cond, index) => {
+      const row = new Setting(this.conditionsEl)
+        .addText((text) => {
+          text
+            .setPlaceholder('key (e.g. completed)')
+            .setValue(cond.key)
+            .onChange((v) => {
+              this.rule.conditions[index].key = v;
+            });
+        })
+        .addDropdown((dropdown) => {
+          dropdown
+            .addOption('equals', 'equals')
+            .addOption('not_equals', 'not equals')
+            .setValue(cond.operator)
+            .onChange((v: string) => {
+              this.rule.conditions[index].operator = v as 'equals' | 'not_equals';
+            });
+        })
+        .addText((text) => {
+          text
+            .setPlaceholder('value (e.g. false)')
+            .setValue(cond.value)
+            .onChange((v) => {
+              this.rule.conditions[index].value = v;
+            });
+        })
+        .addExtraButton((button) => {
+          button.setIcon('trash').setTooltip(t('Remove')).onClick(() => {
+            this.rule.conditions.splice(index, 1);
+            this.renderConditions();
+          });
+        });
+    });
   }
 }

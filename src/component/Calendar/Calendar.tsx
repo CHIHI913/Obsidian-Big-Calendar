@@ -248,10 +248,9 @@ const CalendarComponent = forwardRef((props: CalendarProps, ref: React.Forwarded
     const className = event.eventType;
     const style: React.CSSProperties = {};
 
-    // Check if this event belongs to an ExtraFolder and apply its color
+    // Check if this event belongs to an ExtraFolder (static or dynamic) and apply its color
     if (event.path) {
-      const settings = globalService.getState().pluginSetting;
-      const matchingFolder = settings.ExtraFolders?.find((f: any) => event.path.startsWith(f.path + '/'));
+      const matchingFolder = globalService.getEffectiveExtraFolders().find((f) => event.path.startsWith(f.path + '/'));
       if (matchingFolder?.color) {
         (style as any)['--event-folder-color'] = matchingFolder.color;
       }
