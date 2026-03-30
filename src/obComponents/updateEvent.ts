@@ -5,6 +5,7 @@ import {stringOrDate} from 'react-big-calendar';
 import {createTimeRegex, getAllLinesFromFile, extractEventTime, safeExecute} from '../api';
 import {getDailyNote, getAllDailyNotes} from 'obsidian-daily-notes-interface';
 import {getMarkBasedOnEvent} from './parser';
+import {cleanEventContent, formatEventLine, formatAllDayEvent} from './eventFormatters';
 
 /**
  * Check if a file path belongs to an ExtraFolder
@@ -440,132 +441,8 @@ async function moveEventToNewDay(
   };
 }
 
-/**
- * Cleans the event content by removing time and date information
- */
-function cleanEventContent(originalContent: string, content: string): string {
-  // Always start with the new content provided by the user
-  let cleanContent = content;
-
-  // Remove any existing time patterns
-  cleanContent = cleanContent.replace(/^\d{1,2}:\d{2}(\s?-\s?\d{1,2}:\d{2})?\s+/, '').trim();
-  // Remove any existing end time patterns
-  cleanContent = cleanContent.replace(/⏲\s?\d{1,2}:\d{2}/g, '').trim();
-  // Remove any existing date patterns
-  cleanContent = cleanContent.replace(/📅\s?\d{4}-\d{2}-\d{2}/g, '').trim();
-  // Remove any time range patterns
-  cleanContent = cleanContent.replace(/\d{1,2}:\d{2}\s?-\s?\d{1,2}:\d{2}/g, '').trim();
-
-  // If the original content had special formatting that we want to preserve,
-  // we can check for that here, but we prioritize the new content
-  if (cleanContent === '' && originalContent) {
-    // Fallback to cleaned original content if new content is empty after cleaning
-    cleanContent = originalContent
-      .replace(/^\d{1,2}:\d{2}(\s?-\s?\d{1,2}:\d{2})?\s+/, '')
-      .trim()
-      .replace(/⏲\s?\d{1,2}:\d{2}/g, '')
-      .trim()
-      .replace(/📅\s?\d{4}-\d{2}-\d{2}/g, '')
-      .trim()
-      .replace(/\d{1,2}:\d{2}\s?-\s?\d{1,2}:\d{2}/g, '')
-      .trim();
-  }
-
-  return cleanContent;
-}
-
-/**
- * Formats an event line with the provided content and timestamps
- */
-export function formatEventLine(
-  cleanContent: string,
-  startMoment: moment.Moment,
-  endMoment: moment.Moment,
-  eventType: string,
-): string {
-  const timeHour = startMoment.format('HH');
-  const timeMinute = startMoment.format('mm');
-
-  const mark = getMarkBasedOnEvent(eventType);
-
-  // Extract block ID if present
-  const blockIdMatch = cleanContent.match(/\s(\^[a-zA-Z0-9]{2,})$/);
-  const blockId = blockIdMatch ? blockIdMatch[1] : '';
-
-  // Remove block ID from content for processing
-  let processedContent = blockId ? cleanContent.replace(blockIdMatch[0], '') : cleanContent;
-
-  // Check if the start and end dates are the same
-  const sameDay = startMoment.isSame(endMoment, 'day');
-
-  let newLine;
-
-  if (sameDay) {
-    // For same-day events, use a time range format (HH:MM-HH:MM)
-    newLine = mark
-      ? `- [${mark}] ${timeHour}:${timeMinute}-${endMoment.format('HH:mm')} ${processedContent}`
-      : `- ${timeHour}:${timeMinute}-${endMoment.format('HH:mm')} ${processedContent}`;
-  } else {
-    // For multi-day events, use the format with start and end date emojis
-    newLine = mark
-      ? `- [${mark}] ${processedContent} 🛫 ${startMoment.format('YYYY-MM-DD')} 📅 ${endMoment.format('YYYY-MM-DD')}`
-      : `- ${processedContent} 🛫 ${startMoment.format('YYYY-MM-DD')} 📅 ${endMoment.format('YYYY-MM-DD')}`;
-  }
-
-  // Add block ID back at the end if it exists
-  if (blockId) {
-    newLine += ` ${blockId}`;
-  }
-
-  return newLine;
-}
-
-/**
- * Formats an all-day event without time information
- *
- * @param cleanContent The content of the event
- * @param originalStartDate The original start date
- * @param eventStartMoment The new start date
- * @returns Formatted event line
- */
-function formatAllDayEvent(
-  cleanContent: string,
-  originalStartDate: moment.Moment,
-  eventStartMoment: moment.Moment,
-  eventEndMoment: moment.Moment,
-  eventType: string,
-): string {
-  // Extract block ID if present
-  const blockIdMatch = cleanContent.match(/\s(\^[a-zA-Z0-9]{2,})$/);
-  const blockId = blockIdMatch ? blockIdMatch[1] : '';
-
-  const mark = getMarkBasedOnEvent(eventType);
-
-  // Remove block ID from content for processing
-  let processedContent = blockId ? cleanContent.replace(blockIdMatch[0], '') : cleanContent;
-
-  console.log(eventType, mark);
-
-  let newLine = mark === null ? `- ${processedContent}` : `- [${mark}] ${processedContent}`;
-
-  // Check if start date has changed
-  const startDateChanged = !originalStartDate.isSame(eventStartMoment, 'day');
-  const sameDay = eventStartMoment.isSame(eventEndMoment, 'day');
-
-  if (!sameDay || startDateChanged) {
-    // If start date has changed, add takeoff emoji with date
-    newLine += ` 🛫 ${eventStartMoment.format('YYYY-MM-DD')}`;
-  }
-
-  newLine += ` 📅 ${eventEndMoment.format('YYYY-MM-DD')}`;
-
-  // Add block ID back at the end if it exists
-  if (blockId) {
-    newLine += ` ${blockId}`;
-  }
-
-  return newLine;
-}
+// Re-export formatting functions from eventFormatters (tested separately)
+export {cleanEventContent, formatEventLine, formatAllDayEvent} from './eventFormatters';
 
 /**
  * Gets the file associated with an event
