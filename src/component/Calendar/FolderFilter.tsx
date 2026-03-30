@@ -4,13 +4,7 @@ import globalService from '@/services/globalService';
 import locationService from '@/services/locationService';
 import useEventStore from '@/stores/eventStore';
 import useGlobalStateStore from '@/stores/globalStateStore';
-
-interface FolderToggle {
-  path: string;
-  label: string;
-  color: string;
-  enabled: boolean;
-}
+import {FolderToggle, buildFolderToggles, computeEnabledPaths} from './folderFilterUtils';
 
 interface FolderFilterProps {
   onFilterChange: (filterType: 'metadata' | 'client') => void;
@@ -22,50 +16,23 @@ const FolderFilter: React.FC<FolderFilterProps> = ({onFilterChange}) => {
 
   // Build folder list from settings (rebuilds when pluginSetting changes, e.g. dynamic folders refresh)
   useEffect(() => {
-    const toggles: FolderToggle[] = [];
-
-    // Daily Notes folder
+    let dailyNotePath: string | null = null;
     try {
-      const dailyNotePath = fileService.getDailyNotePath();
-      if (dailyNotePath) {
-        toggles.push({
-          path: dailyNotePath,
-          label: dailyNotePath.split('/').pop() || dailyNotePath,
-          color: 'var(--interactive-accent)',
-          enabled: true,
-        });
-      }
+      dailyNotePath = fileService.getDailyNotePath();
     } catch {
       // Daily notes not configured
     }
 
-    // Effective ExtraFolders (static + dynamic)
     const effectiveFolders = globalService.getEffectiveExtraFolders();
-    for (const folder of effectiveFolders) {
-      toggles.push({
-        path: folder.path,
-        label: folder.path.split('/').pop() || folder.path,
-        color: folder.color || '#80d0ff',
-        enabled: true,
-      });
-    }
-
-    setFolders(toggles);
+    setFolders(buildFolderToggles(dailyNotePath, effectiveFolders));
   }, [pluginSetting]);
 
   const handleToggle = useCallback(
     (index: number) => {
       setFolders((prev) => {
         const next = prev.map((f, i) => (i === index ? {...f, enabled: !f.enabled} : f));
-
-        // If all enabled, clear folder filter (show everything)
-        const allEnabled = next.every((f) => f.enabled);
-        if (allEnabled) {
-          locationService.setFolderPaths([]);
-        } else {
-          const enabledPaths = next.filter((f) => f.enabled).map((f) => f.path);
-          locationService.setFolderPaths(enabledPaths);
-        }
+        const enabledPaths = computeEnabledPaths(prev, index);
+        locationService.setFolderPaths(enabledPaths);
 
         // Trigger client-side filter
         onFilterChange('client');

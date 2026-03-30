@@ -90,12 +90,23 @@ const CalendarComponent = forwardRef((props: CalendarProps, ref: React.Forwarded
   const localizer = useMemo(() => momentLocalizer(moment), []);
 
   // Compute effective view (work_week when hiding weekends in week view)
+  const isTaskWeek = calendarView === ('task_week' as View);
   const effectiveView = useMemo(() => {
+    if (isTaskWeek) {
+      return 'month' as View; // Use month view internally, CSS limits to 2 weeks
+    }
     if (hideWeekends && calendarView === 'week') {
       return 'work_week' as View;
     }
     return calendarView;
-  }, [hideWeekends, calendarView]);
+  }, [hideWeekends, calendarView, isTaskWeek]);
+
+  // For 2Week view: compute the month-view date that ensures both target weeks are visible
+  const taskWeekMonthDate = useMemo(() => {
+    if (!isTaskWeek) return null;
+    // Use a date from the second week's month to ensure both weeks appear in the same month view
+    return moment(calendarDate).startOf('week').add(7, 'days').toDate();
+  }, [isTaskWeek, calendarDate]);
 
   // Filter events for agenda view when hiding weekends
   const filteredEvents = useMemo(() => {
@@ -306,11 +317,20 @@ const CalendarComponent = forwardRef((props: CalendarProps, ref: React.Forwarded
 
   // Handle navigation (date changes)
   const handleNavigate = useCallback(
-    (date: Date) => {
+    (date: Date, view?: View, action?: string) => {
       let targetDate = date;
 
-      // Skip weekends in day view when hideWeekends is on
-      if (hideWeekends && calendarView === 'day') {
+      if (isTaskWeek) {
+        // Navigate by 1 week instead of 1 month
+        if (action === 'PREV') {
+          targetDate = moment(calendarDate).subtract(1, 'week').toDate();
+        } else if (action === 'NEXT') {
+          targetDate = moment(calendarDate).add(1, 'week').toDate();
+        } else if (action === 'TODAY') {
+          targetDate = new Date();
+        }
+      } else if (hideWeekends && calendarView === 'day') {
+        // Skip weekends in day view when hideWeekends is on
         const day = date.getDay();
         if (day === 0 || day === 6) {
           const isForward = date.getTime() > calendarDate.getTime();
@@ -334,7 +354,7 @@ const CalendarComponent = forwardRef((props: CalendarProps, ref: React.Forwarded
         }
       }
     },
-    [calendarDate, setCalendarDate, app, saveCalendarDate, hideWeekends, calendarView],
+    [calendarDate, setCalendarDate, app, saveCalendarDate, hideWeekends, calendarView, isTaskWeek],
   );
 
   // Handle event resize - Memoize the implementation
@@ -394,7 +414,7 @@ const CalendarComponent = forwardRef((props: CalendarProps, ref: React.Forwarded
       resizable: resize,
       defaultView: calendarView,
       defaultDate: calendarDate,
-      date: calendarDate,
+      date: taskWeekMonthDate || calendarDate,
       view: effectiveView,
       views: hideWeekends
         ? {month: true, week: true, work_week: true, day: true, agenda: true}
@@ -438,6 +458,7 @@ const CalendarComponent = forwardRef((props: CalendarProps, ref: React.Forwarded
     hideWeekends,
     styleEvents,
     calendarPopup,
+    taskWeekMonthDate,
     onEventDrop,
     onEventResize,
     handleViewChange,
@@ -446,9 +467,33 @@ const CalendarComponent = forwardRef((props: CalendarProps, ref: React.Forwarded
     handleEventSelect,
   ]);
 
+  // 2Week view: hide month rows except the 2 target weeks
+  useEffect(() => {
+    if (!isTaskWeek || !containerRef.current) return;
+
+    const rows = containerRef.current.querySelectorAll('.rbc-month-row');
+    if (!rows.length) return;
+
+    // Calculate which row contains the start of the target week
+    const monthDate = taskWeekMonthDate || calendarDate;
+    const monthViewStart = moment(monthDate).startOf('month').startOf('week');
+    const targetWeekStart = moment(calendarDate).startOf('week');
+    const daysDiff = targetWeekStart.diff(monthViewStart, 'days');
+    const targetRowIndex = Math.floor(daysDiff / 7);
+
+    rows.forEach((row, index) => {
+      const el = row as HTMLElement;
+      if (index === targetRowIndex || index === targetRowIndex + 1) {
+        el.style.display = '';
+      } else {
+        el.style.display = 'none';
+      }
+    });
+  });
+
   const containerClassName = `calendar-container${hideWeekends ? ' hide-weekends' : ''}${
-    moment.localeData().firstDayOfWeek() === 1 ? ' start-monday' : ' start-sunday'
-  }`;
+    isTaskWeek ? ' task-week-view' : ''
+  }${moment.localeData().firstDayOfWeek() === 1 ? ' start-monday' : ' start-sunday'}`;
 
   return (
     <div ref={containerRef} className={containerClassName}>

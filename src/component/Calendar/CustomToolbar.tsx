@@ -3,6 +3,7 @@ import {App, Modal, moment, setIcon} from 'obsidian';
 import useFileStore from '@/stores/fileStore';
 import useCalendarStore from '@/stores/calendarStore';
 import {ToolbarProps, View, NavigateAction} from 'react-big-calendar';
+import type {CalendarState} from '@/stores/calendarStore';
 import '@/less/time-select.less';
 import {t} from '@/translations/helper';
 
@@ -19,7 +20,8 @@ const CustomToolbar: React.FC<ToolbarProps<any, object>> = (props) => {
   } = props;
 
   const app = useFileStore((state) => state.app);
-  const {hideWeekends, setHideWeekends, saveHideWeekends} = useCalendarStore();
+  const {hideWeekends, setHideWeekends, saveHideWeekends, calendarView, setCalendarView, saveCalendarView} =
+    useCalendarStore();
 
   // Handle toggle weekends
   const handleToggleWeekends = useCallback(() => {
@@ -60,25 +62,47 @@ const CustomToolbar: React.FC<ToolbarProps<any, object>> = (props) => {
     datePicker.open();
   }, [app, onNavigate, date]);
 
+  // Handle switching to task_week view
+  const handleTaskWeekView = useCallback(() => {
+    setCalendarView('task_week' as View);
+    if (app) {
+      setTimeout(() => saveCalendarView(app), 0);
+    }
+  }, [setCalendarView, saveCalendarView, app]);
+
   // Render view buttons
   const renderViewButtons = useCallback(() => {
-    // Convert views object to array of keys
-    const viewNames = ['month', 'week', 'day', 'agenda'];
+    const isTaskWeek = calendarView === ('task_week' as View);
 
-    if (viewNames.length > 1) {
-      return viewNames.map((name) => (
+    return (
+      <>
         <button
           type="button"
-          key={name}
-          className={view === name ? 'rbc-active' : ''}
-          onClick={() => handleView(name as View)}
+          className={!isTaskWeek && view === 'month' ? 'rbc-active' : ''}
+          onClick={() => handleView('month' as View)}
         >
-          {messages[name]}
+          {messages['month']}
         </button>
-      ));
-    }
-    return null;
-  }, [views, view, messages, handleView]);
+        <button
+          type="button"
+          className={isTaskWeek ? 'rbc-active' : ''}
+          onClick={handleTaskWeekView}
+        >
+          2Week
+        </button>
+        {['week', 'day', 'agenda'].map((name) => (
+          <button
+            type="button"
+            key={name}
+            className={!isTaskWeek && view === name ? 'rbc-active' : ''}
+            onClick={() => handleView(name as View)}
+          >
+            {messages[name]}
+          </button>
+        ))}
+      </>
+    );
+  }, [views, view, messages, handleView, calendarView, handleTaskWeekView]);
 
   return (
     <div className="rbc-toolbar">
