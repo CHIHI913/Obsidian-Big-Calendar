@@ -422,6 +422,7 @@ const CalendarComponent = forwardRef((props: CalendarProps, ref: React.Forwarded
       ...timeRangeProps,
       eventPropGetter: styleEvents,
       popup: calendarPopup,
+      showAllEvents: isTaskWeek,
       onEventDrop: onEventDrop,
       onEventResize: onEventResize,
       titleAccessor: (event: any) => {
